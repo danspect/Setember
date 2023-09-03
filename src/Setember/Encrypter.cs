@@ -22,7 +22,7 @@ public class Encrypter
     private static byte[] Key { get; set; }
     private static byte[] IV { get; set; }
     private static string Password { get; set; }
-    public static byte[] PasswordBytes { get; set; }
+    private static byte[] PasswordBytes { get; set; }
 
     private static readonly byte[] Salt = new byte[] {
         10, 20, 30, 40, 50, 60, 70, 80
