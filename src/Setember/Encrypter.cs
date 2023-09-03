@@ -37,7 +37,7 @@ public class Encrypter
         IV = keys[1];
     }
 
-    public byte[] EncryptWithAES(byte[] byteToEncrypt)
+    public async Task<byte[]> EncryptWithAES(byte[] byteToEncrypt)
     {
         byte[] encryptedBytes = null;
         using (var ms = new MemoryStream())
@@ -54,7 +54,7 @@ public class Encrypter
 
                 using (var cryptoStream = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
                 {
-                    cryptoStream.WriteAsync(byteToEncrypt, 0, byteToEncrypt.Length);
+                    await cryptoStream.WriteAsync(byteToEncrypt, 0, byteToEncrypt.Length);
                     cryptoStream.Close();
                 }
                 encryptedBytes = ms.ToArray();
@@ -86,7 +86,7 @@ public class Encrypter
         byte[] bytesToEncrypt = File.ReadAllBytes(filePath);
         byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
 
-        await Task.Run(async () =>
+        await Task.Run(() =>
         {
             passwordBytes = SHA512.Create().ComputeHash(passwordBytes);
             //await File.WriteAllBytesAsync(filePath, );
