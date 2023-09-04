@@ -44,11 +44,7 @@ public class FileManager
         ".OTT", ".ODT", ".PEM", ".P12", ".CSR", ".CRT", ".KEY", ".PFX", ".DER"
     };
 
-    public async Task InitAsync(string path)
-        => await Task.Run(() => GetFiles(path));
-
-
-    protected void GetFiles(string path)
+    protected internal void GetFiles(string path)
     {
         foreach (string actualPath in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
         {
