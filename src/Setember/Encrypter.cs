@@ -44,7 +44,7 @@ public class Encrypter : IDisposable
         IV = keys[1];
     }
 
-    public async Task<byte[]> EncryptWithAES(byte[] byteToEncrypt)
+    protected async Task<byte[]> EncryptWithAES(byte[] byteToEncrypt)
     {
         byte[] encryptedBytes = null;
         using (var memoryStream = new MemoryStream())
@@ -70,7 +70,7 @@ public class Encrypter : IDisposable
         return encryptedBytes;
     }
 
-    public async Task EncryptFileAsync(string filePath)
+    protected internal async Task EncryptFileAsync(string filePath)
     {
         byte[] bytesToEncrypt = File.ReadAllBytes(filePath);
 
