@@ -48,24 +48,23 @@ class Program
     private static void GenerateMachineId()
     {
         byte[] salt = GenerateRandomSalt();
-        string computerName = Environment.MachineName;
-        string currentTime = DateTime.Now.ToString();
-        string combinedInfo = computerName + currentTime;
+        string[] infos = {
+            Environment.MachineName,
+            DateTime.Now.ToString(),
+            Convert.ToBase64String(salt)
+        };
 
-        using (SHA512 sha512 = SHA512.Create())
+        byte[] combinedBytes = Encoding.UTF8.GetBytes(string.Join("", infos));
+        byte[] hash = SHA512.Create().ComputeHash(combinedBytes);
+        var machineId = new StringBuilder();
+
+        foreach (byte b in hash)
         {
-            byte[] combinedBytes = Encoding.UTF8.GetBytes(combinedInfo + Convert.ToBase64String(salt));
-            byte[] hash = sha512.ComputeHash(combinedBytes);
-            var machineId = new StringBuilder();
-
-            foreach (byte b in hash)
-            {
-                // 'X4' formats to a hexadecimal number
-                machineId.Append(b.ToString("X4"));
-            }
-
-            MachineId = machineId.ToString();
+            // 'X4' formats to a hexadecimal number
+            machineId.Append(b.ToString("X4"));
         }
+
+        MachineId = machineId.ToString();
     }
 
     private static byte[] GenerateRandomSalt()
