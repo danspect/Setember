@@ -54,8 +54,10 @@ class Program
             Convert.ToBase64String(salt)
         };
 
-        byte[] combinedBytes = Encoding.UTF8.GetBytes(string.Join("", infos));
-        byte[] hash = SHA512.Create().ComputeHash(combinedBytes);
+        byte[] hash = SHA512.Create().ComputeHash(
+            Encoding.UTF8.GetBytes(string.Join("", infos))
+        );
+
         var machineId = new StringBuilder();
 
         foreach (byte b in hash)
